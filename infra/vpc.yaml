@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  VPC air-gapped para o filtro-inteligente.
+  Utiliza VPC Interface Endpoints (AWS PrivateLink) para todos os serviços AWS.
+  Nenhum tráfego trafega pela internet pública — sem IGW, sem NAT Gateway.
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+  SubnetPrivadaCidr:
+    Type: String
+    Default: 10.0.1.0/24
+  RegionName:
+    Type: String
+    Default: us-east-1
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true      # Obrigatório para resolução de DNS dos endpoints
+      EnableDnsHostnames: true    # Obrigatório para PrivateDnsEnabled=true nos endpoints
+      Tags:
+        - Key: Name
+          Value: filtro-inteligente-vpc
+
+  SubnetPrivada:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref SubnetPrivadaCidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: filtro-inteligente-subnet-privada
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: filtro-inteligente-rt-privada
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivada
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroupEndpoints:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permite trafego HTTPS da Lambda para os VPC Endpoints
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: filtro-inteligente-sg-endpoints
+
+  # --- Interface Endpoints (PrivateLink) ---
+  # CRÍTICO: PrivateDnsEnabled=true é obrigatório.
+  # Com false, a Lambda resolve o DNS público do serviço e o tráfego
+  # tenta sair da VPC — timeout silencioso sem IGW/NAT.
+
+  EndpointTextract:
+    Type: AWS::EC2::VpcEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${RegionName}.textract'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref SubnetPrivada
+      SecurityGroupIds:
+        - !Ref SecurityGroupEndpoints
+
+  EndpointComprehend:
+    Type: AWS::EC2::VpcEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${RegionName}.comprehend'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref SubnetPrivada
+      SecurityGroupIds:
+        - !Ref SecurityGroupEndpoints
+
+  EndpointSNS:
+    Type: AWS::EC2::VpcEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${RegionName}.sns'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref SubnetPrivada
+      SecurityGroupIds:
+        - !Ref SecurityGroupEndpoints
+
+  EndpointDynamoDB:
+    Type: AWS::EC2::VpcEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${RegionName}.dynamodb'
+      VpcEndpointType: Gateway   # Gateway Endpoint: gratuito, recomendado para DynamoDB
+      RouteTableIds:
+        - !Ref RouteTable
+
+  # Gateway Endpoint para S3 (gratuito — recomendação AWS vs Interface Endpoint pago)
+  EndpointS3:
+    Type: AWS::EC2::VpcEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${RegionName}.s3'
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref RouteTable
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: filtro-inteligente-vpc-VpcId
+
+  SubnetPrivadaId:
+    Value: !Ref SubnetPrivada
+    Export:
+      Name: filtro-inteligente-vpc-SubnetPrivadaId
+
+  SecurityGroupId:
+    Value: !Ref SecurityGroupEndpoints
+    Export:
+      Name: filtro-inteligente-vpc-SecurityGroupId

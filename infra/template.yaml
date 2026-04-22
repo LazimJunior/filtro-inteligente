@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  filtro-inteligente — Pipeline serverless de detecção de PII em documentos.
+  Utiliza VPC Interface Endpoints (PrivateLink) para isolamento total de rede.
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Nome do bucket S3 que armazenará os documentos
+  TableName:
+    Type: String
+    Default: FiltroInteligenteDados
+    Description: Nome da tabela DynamoDB para metadados
+  SnsTopicArn:
+    Type: String
+    Description: ARN do tópico SNS para alertas
+
+Resources:
+
+  FiltroInteligenteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: filtro-inteligente
+      CodeUri: ../src/
+      Handler: handler.lambda_handler
+      Runtime: python3.13
+      Timeout: 300
+      MemorySize: 256
+      VpcConfig:
+        SubnetIds:
+          - !ImportValue filtro-inteligente-vpc-SubnetPrivadaId
+        SecurityGroupIds:
+          - !ImportValue filtro-inteligente-vpc-SecurityGroupId
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          SNS_TOPIC_ARN: !Ref SnsTopicArn
+          BUCKET_NAME: !Ref BucketName
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref DocumentsBucket
+            Events: s3:ObjectCreated:*
+
+  DocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  MetadadosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: document_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: document_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: filtro-inteligente-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: filtro-inteligente-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - textract:DetectDocumentText
+                  - textract:StartDocumentTextDetection
+                  - textract:GetDocumentTextDetection
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - comprehend:DetectPiiEntities
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${BucketName}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                Resource: !GetAtt MetadadosTable.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SnsTopicArn
+
+Outputs:
+  FunctionArn:
+    Value: !GetAtt FiltroInteligenteFunction.Arn
+  TableArn:
+    Value: !GetAtt MetadadosTable.Arn
+  BucketArn:
+    Value: !GetAtt DocumentsBucket.Arn

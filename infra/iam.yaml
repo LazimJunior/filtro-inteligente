@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  IAM Roles e Policies para o filtro-inteligente.
+  Princípio de Least Privilege — cada permissão é restrita ao recurso exato.
+
+Parameters:
+  BucketName:
+    Type: String
+  TableName:
+    Type: String
+  SnsTopicArn:
+    Type: String
+  AccountId:
+    Type: String
+  RegionName:
+    Type: String
+    Default: us-east-1
+
+Resources:
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: filtro-inteligente-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Permite criar ENIs na VPC (necessário para Lambda em VPC)
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: textract-readonly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - textract:DetectDocumentText
+                  - textract:StartDocumentTextDetection
+                  - textract:GetDocumentTextDetection
+                Resource: '*'   # Textract não suporta resource-level permissions
+
+        - PolicyName: comprehend-pii
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - comprehend:DetectPiiEntities
+                Resource: '*'   # Comprehend não suporta resource-level permissions
+
+        - PolicyName: s3-getobject
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${BucketName}/*'
+
+        - PolicyName: dynamodb-putitem
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                # ATENÇÃO: ARN deve usar o nome EXATO da tabela — erros aqui causam AccessDenied
+                Resource: !Sub 'arn:aws:dynamodb:${RegionName}:${AccountId}:table/${TableName}'
+
+        - PolicyName: sns-publish
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref SnsTopicArn
+
+Outputs:
+  LambdaRoleArn:
+    Value: !GetAtt LambdaRole.Arn
+    Export:
+      Name: filtro-inteligente-LambdaRoleArn

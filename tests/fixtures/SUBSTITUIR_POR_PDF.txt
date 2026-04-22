@@ -1,0 +1,6 @@
+Este arquivo é um placeholder.
+
+Substitua por um PDF fictício contendo CPF no formato 000.000.000-00
+para ser usado como fixture nos testes de integração.
+
+O arquivo deve ser um PDF real para que o Textract consiga processar.
