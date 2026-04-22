@@ -21,8 +21,8 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref VpcCidr
-      EnableDnsSupport: true      # Obrigatório para resolução de DNS dos endpoints
-      EnableDnsHostnames: true    # Obrigatório para PrivateDnsEnabled=true nos endpoints
+      EnableDnsSupport: true      
+      EnableDnsHostnames: true    
       Tags:
         - Key: Name
           Value: filtro-inteligente-vpc
@@ -66,11 +66,6 @@ Resources:
         - Key: Name
           Value: filtro-inteligente-sg-endpoints
 
-  # --- Interface Endpoints (PrivateLink) ---
-  # CRÍTICO: PrivateDnsEnabled=true é obrigatório.
-  # Com false, a Lambda resolve o DNS público do serviço e o tráfego
-  # tenta sair da VPC — timeout silencioso sem IGW/NAT.
-
   EndpointTextract:
     Type: AWS::EC2::VpcEndpoint
     Properties:
@@ -112,11 +107,10 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       ServiceName: !Sub 'com.amazonaws.${RegionName}.dynamodb'
-      VpcEndpointType: Gateway   # Gateway Endpoint: gratuito, recomendado para DynamoDB
+      VpcEndpointType: Gateway   
       RouteTableIds:
         - !Ref RouteTable
 
-  # Gateway Endpoint para S3 (gratuito — recomendação AWS vs Interface Endpoint pago)
   EndpointS3:
     Type: AWS::EC2::VpcEndpoint
     Properties:

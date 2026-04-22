@@ -13,7 +13,6 @@ tabela = dynamodb.Table(NOME_TABELA)
 
 
 def salvar_resultado(document_id: str, bucket: str, status: str, tipos_dados: list, request_id: str):
-    """Persiste os metadados de análise do documento no DynamoDB."""
     item = {
         'document_id': document_id,
         'timestamp': int(time.time()),

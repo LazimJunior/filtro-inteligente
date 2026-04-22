@@ -74,4 +74,4 @@ durante o desenvolvimento e suas soluções.
 ## Autor
 
 Lazim Francisco de Oliveira Junior  
-[linkedin.com/in/seu-perfil](https://linkedin.com/in/seu-perfil) · [github.com/lazim-Junior](https://github.com/lazim-Junior)
+[linkedin.com/in/seu-perfil](www.linkedin.com/in/lazim-junior) · [github.com/lazim-Junior](https://github.com/LazimJunior)

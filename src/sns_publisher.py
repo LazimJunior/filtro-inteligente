@@ -11,7 +11,6 @@ TOPICO_ARN = os.environ.get('SNS_TOPIC_ARN', '')
 
 
 def publicar_alerta(key: str, tipos_encontrados: list, request_id: str):
-    """Publica alerta no tópico SNS quando dados sensíveis são detectados."""
     if not TOPICO_ARN:
         logger.warning("SNS_TOPIC_ARN não configurado. Alerta não enviado.")
         return

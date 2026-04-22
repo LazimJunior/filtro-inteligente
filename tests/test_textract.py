@@ -10,10 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 @mock_aws
 def test_detect_document_text_retorna_texto():
-    """Testa que o Textract retorna blocos de texto corretamente."""
     client = boto3.client('textract', region_name='us-east-1')
-
-    # Simula resposta do Textract com moto
     with patch.object(client, 'detect_document_text') as mock_textract:
         mock_textract.return_value = {
             'Blocks': [
@@ -34,7 +31,6 @@ def test_detect_document_text_retorna_texto():
 
 @mock_aws
 def test_texto_extraido_concatena_linhas():
-    """Testa que o texto extraído une as linhas com espaço."""
     blocos = [
         {'BlockType': 'LINE', 'Text': 'Linha um'},
         {'BlockType': 'LINE', 'Text': 'Linha dois'},

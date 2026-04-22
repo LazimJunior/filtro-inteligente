@@ -9,7 +9,6 @@ textract = boto3.client('textract')
 
 
 def start_document_text_detection(bucket: str, key: str) -> str:
-    """Inicia job assíncrono de detecção de texto no Textract."""
     response = textract.start_document_text_detection(
         DocumentLocation={
             'S3Object': {
@@ -24,7 +23,6 @@ def start_document_text_detection(bucket: str, key: str) -> str:
 
 
 def poll_job(job_id: str, max_attempts: int = 20, delay: int = 5) -> list:
-    """Faz polling do job até conclusão e retorna os blocos de texto."""
     for attempt in range(max_attempts):
         response = textract.get_document_text_detection(JobId=job_id)
         status = response['JobStatus']
@@ -42,6 +40,5 @@ def poll_job(job_id: str, max_attempts: int = 20, delay: int = 5) -> list:
 
 
 def extract_text(blocks: list) -> str:
-    """Extrai o texto de blocos do tipo LINE retornados pelo Textract."""
     lines = [block['Text'] for block in blocks if block['BlockType'] == 'LINE']
     return " ".join(lines)

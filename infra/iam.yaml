@@ -30,7 +30,6 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        # Permite criar ENIs na VPC (necessário para Lambda em VPC)
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: textract-readonly
@@ -42,7 +41,7 @@ Resources:
                   - textract:DetectDocumentText
                   - textract:StartDocumentTextDetection
                   - textract:GetDocumentTextDetection
-                Resource: '*'   # Textract não suporta resource-level permissions
+                Resource: '*'   
 
         - PolicyName: comprehend-pii
           PolicyDocument:
@@ -51,7 +50,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - comprehend:DetectPiiEntities
-                Resource: '*'   # Comprehend não suporta resource-level permissions
+                Resource: '*'   
 
         - PolicyName: s3-getobject
           PolicyDocument:
@@ -70,7 +69,6 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
-                # ATENÇÃO: ARN deve usar o nome EXATO da tabela — erros aqui causam AccessDenied
                 Resource: !Sub 'arn:aws:dynamodb:${RegionName}:${AccountId}:table/${TableName}'
 
         - PolicyName: sns-publish
